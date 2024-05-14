@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"time"
 
-	_ "embed"
-
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )

@@ -608,7 +608,7 @@ var _ = Describe("Task Tracker Plus", Ordered, func() {
 
 						var response model.SuccessResponse
 						Expect(json.Unmarshal(w.Body.Bytes(), &response)).Should(Succeed())
-						Expect(response.Message).To(Equal("category update success"))
+						Expect(response.Message).To(Equal("category update succes"))
 					})
 				})
 

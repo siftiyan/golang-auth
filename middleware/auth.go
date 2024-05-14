@@ -2,59 +2,53 @@ package middleware
 
 import (
 	"a21hc3NpZ25tZW50/model"
-	"errors"
-	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 )
 
-// ValidateToken function to validate JWT token
-func ValidateToken(tokenString string) (*model.Claims, error) {
-	// Parse token
-	token, err := jwt.ParseWithClaims(tokenString, &model.Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return model.JwtKey, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Check token validity
-	claims, ok := token.Claims.(*model.Claims)
-	if !ok || !token.Valid {
-		return nil, errors.New("invalid token")
-	}
-
-	return claims, nil
-}
-
-// Auth middleware to authenticate user using JWT token
 func Auth() gin.HandlerFunc {
 	return gin.HandlerFunc(func(ctx *gin.Context) {
-		authHeader := ctx.GetHeader("Authorization")
-		if authHeader == "" {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
 
-		// Split header to get token
-		authParts := strings.Split(authHeader, " ")
-		if len(authParts) != 2 || authParts[0] != "Bearer" {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header"})
-			return
-		}
-
-		token := authParts[1]
-
-		// Validate JWT token
-		user, err := ValidateToken(token) // Use the local ValidateToken function
+		token, err := ctx.Cookie("session_token")
 		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			if ctx.Request.Header.Get("Content-Type") != "application/json" {
+				ctx.JSON(303, gin.H{
+					"error": "Invalid content type",
+				})
+				ctx.Abort()
+				return
+			}
+			ctx.JSON(401, gin.H{
+				"error": err.Error(),
+			})
+			ctx.Abort()
 			return
 		}
 
-		ctx.Set("userID", user.UserID)
+		claims := &model.Claims{}
+
+		tokenString, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(model.JwtKey), nil
+		})
+		if err != nil {
+			ctx.JSON(400, gin.H{
+				"error": "Invalid token",
+			})
+			ctx.Abort()
+			return
+		}
+
+		if !tokenString.Valid {
+			ctx.JSON(401, gin.H{
+				"error": "Unauthorized",
+			})
+			ctx.Abort()
+			return
+		}
+
+		ctx.Set("id", claims.UserID)
+
 		ctx.Next()
 	})
 }
